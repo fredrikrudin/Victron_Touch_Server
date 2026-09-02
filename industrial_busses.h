@@ -65,7 +65,7 @@ inline void checkRelayPresence() {
         return;
     }
     
-    uint8_t pingPacket[] = { 0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x7D, 0xCA }; // Korrekt array-syntax
+    uint8_t pingPacket[] = { 0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x7D, 0xCA }; // RÄTT
 
     while(RS485Serial.available()) RS485Serial.read();
 
