@@ -149,6 +149,14 @@ void loop() {
         }
         lastSystemPrint = millis();
     }
-    
+    // Lägg till detta i loop() i din Victron_Touch_Server.ino:
+if (currentScreen == SCREEN_DASHBOARD) {
+    if (xSemaphoreTake(dataMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        // Om du har VenusOS-bågar aktiva, uppdatera deras värden härifrån
+        // ex: lv_arc_set_value(arc_battery, savedVictrons[0].stateOfCharge);
+        xSemaphoreGive(dataMutex);
+    }
+}
+
     vTaskDelay(pdMS_TO_TICKS(1));
 }
