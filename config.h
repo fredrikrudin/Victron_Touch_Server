@@ -17,54 +17,32 @@
 enum VictronType { TYPE_UNKNOWN, TYPE_SOLAR_CHARGER, TYPE_BATTERY_MONITOR, TYPE_INVERTER, TYPE_DCDC };
 
 struct VictronDevice {
-    char mac[18];
-    char name[32];
-    char encryptionKey[33]; // 32 tecken hex + null-terminator
-    VictronType type;
-    bool connected;
-    
-    float batteryVoltage;
-    float batteryCurrent;
-    float pvPower;        
-    float consumedAh;     
-    int stateOfCharge;    
-    int deviceState;      
-    uint8_t chargerError; 
-    char lastSeen[20];     // YYYY-MM-DD HH:MM:SS
+    char mac;             // SAKNAR STORLEK! Rymmer bara 1 bokstav
+    char name;            // SAKNAR STORLEK!
+    char encryptionKey;   // SAKNAR STORLEK!
+    // ...
+    char lastSeen;        // SAKNAR STORLEK!
 };
 
 struct RuuviTag {
-    char mac[18];
-    char name[32];
-    float temperature;
-    float humidity;
-    bool active;
-    char lastSeen[20];
+    char mac;             // SAKNAR STORLEK!
+    char name;            // SAKNAR STORLEK!
+    // ...
+    char lastSeen;        // SAKNAR STORLEK!
 };
 
 struct SystemSettings {
-    char ntpServer[64];
-    int victronScanInterval; 
-    int ruuviScanInterval;
-    int brightnessDay;
-    int brightnessNight;
-    int brightnessDimmed;
-    int screenTimeoutSec;
-    int nightStartHour;
-    int nightEndHour;
-    bool autoRelayCheck;     
-    char wifiSSID[32];
-    char wifiPass[64];
-    bool useSTA;
-    bool useSwedenTZ;       // Sann om automatisk sommar/vintertid för Sverige ska gälla
-    int manualUtcOffset;    // Fallback manuell offset i sekunder (t.ex. 3600 för CET)
+    char ntpServer;       // SAKNAR STORLEK!
+    // ...
+    char wifiSSID;        // SAKNAR STORLEK!
+    char wifiPass;        // SAKNAR STORLEK!
 };
-
 
 struct DiscoveredBLE {
-    char mac[18];
+    char mac;             // SAKNAR STORLEK!
     int rssi;
 };
+
 
 #define MAX_DEVICES 5
 #define MAX_DISCOVERED 10
