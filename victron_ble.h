@@ -14,23 +14,25 @@ inline void hexStringToBytes(const char* hex, uint8_t* bytes) {
 }
 
 inline void decryptVictronPacket(uint8_t* encryptedData, size_t dataLen, const char* keyStr, uint8_t* decryptedOutput) {
-    uint8_t key[16];
+    uint8_t key[16]; // Exakt 128-bitars krypteringsnyckel
     hexStringToBytes(keyStr, key);
 
-    uint8_t iv[16] = {0};
-    iv[0] = encryptedData[2]; 
-    iv[1] = encryptedData[3]; 
+    uint8_t iv[16] = {0}; // 16 bytes IV-block för AES-CTR
+    iv[0] = encryptedData[2]; // Paketräknare (Nonce) byte 1
+    iv[1] = encryptedData[3]; // Paketräknare (Nonce) byte 2
     
     mbedtls_aes_context aes;
     mbedtls_aes_init(&aes);
     mbedtls_aes_setkey_enc(&aes, key, 128);
 
     size_t nc_off = 0;
-    uint8_t stream_block[16] = {0};
+    uint8_t stream_block[16] = {0}; // Kräver ett fast 16-bytes strömblock
 
+    // Rådatat som ska dekrypteras börjar efter tillverkarspecifikationen (byte 6)
     mbedtls_aes_crypt_ctr(&aes, dataLen - 6, &nc_off, iv, stream_block, encryptedData + 6, decryptedOutput);
     mbedtls_aes_free(&aes);
 }
+
 
 inline const char* getVictronErrorString(uint8_t errorCode) {
     switch (errorCode) {
