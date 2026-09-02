@@ -17,31 +17,55 @@
 enum VictronType { TYPE_UNKNOWN, TYPE_SOLAR_CHARGER, TYPE_BATTERY_MONITOR, TYPE_INVERTER, TYPE_DCDC };
 
 struct VictronDevice {
-    char mac;             // SAKNAR STORLEK! Rymmer bara 1 bokstav
-    char name;            // SAKNAR STORLEK!
-    char encryptionKey;   // SAKNAR STORLEK!
-    // ...
-    char lastSeen;        // SAKNAR STORLEK!
+    char mac[18];             // Plats för "AA:BB:CC:DD:EE:FF\0"
+    char name[32];            // Plats för enhetsnamn
+    char encryptionKey[33];   // Plats for 32 tecken bindkey + \0
+    VictronType type;
+    bool connected;
+    
+    float batteryVoltage;
+    float batteryCurrent;
+    float pvPower;        
+    float consumedAh;     
+    int stateOfCharge;    
+    int deviceState;      
+    uint8_t chargerError; 
+    char lastSeen[20];        // Plats för "YYYY-MM-DD HH:MM:SS\0"
 };
 
 struct RuuviTag {
-    char mac;             // SAKNAR STORLEK!
-    char name;            // SAKNAR STORLEK!
-    // ...
-    char lastSeen;        // SAKNAR STORLEK!
+    char mac[18];
+    char name[32];
+    float temperature;
+    float humidity;
+    bool active;
+    char lastSeen[20];
 };
 
 struct SystemSettings {
-    char ntpServer;       // SAKNAR STORLEK!
-    // ...
-    char wifiSSID;        // SAKNAR STORLEK!
-    char wifiPass;        // SAKNAR STORLEK!
+    char ntpServer[64];       
+    int victronScanInterval; 
+    int ruuviScanInterval;
+    int brightnessDay;
+    int brightnessNight;
+    int brightnessDimmed;
+    int screenTimeoutSec;
+    int nightStartHour;
+    int nightEndHour;
+    bool autoRelayCheck;     
+    
+    char wifiSSID[32];        // Maxlängd för SSID
+    char wifiPass[64];        // Maxlängd för WPA2 lösenord
+    bool useSTA; 
+    bool useSwedenTZ;       
+    int manualUtcOffset;    
 };
 
 struct DiscoveredBLE {
-    char mac;             // SAKNAR STORLEK!
+    char mac[18];
     int rssi;
 };
+
 
 
 #define MAX_DEVICES 5
