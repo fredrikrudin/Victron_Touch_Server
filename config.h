@@ -53,12 +53,13 @@ struct SystemSettings {
     int nightStartHour;
     int nightEndHour;
     bool autoRelayCheck;     
-    
-    // WiFi-klientuppgifter
-    char wifiSSID[64];
+    char wifiSSID[32];
     char wifiPass[64];
-    bool useSTA; 
+    bool useSTA;
+    bool useSwedenTZ;       // Sann om automatisk sommar/vintertid för Sverige ska gälla
+    int manualUtcOffset;    // Fallback manuell offset i sekunder (t.ex. 3600 för CET)
 };
+
 
 struct DiscoveredBLE {
     char mac[18];
