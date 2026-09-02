@@ -8,12 +8,23 @@
 
 #define PCF85063_ADDR 0x51
 
-inline uint8_t bcdToDec(uint8_t val) { return ((val / 16 * 10) + (val % 16)); }
-inline uint8_t decToBcd(uint8_t val) { return ((val / 10 * 16) + (val % 10)); }
-
-inline bool checkRTCStatus() {
-    Wire.beginTransmission(PCF85063_ADDR);
-    return (Wire.endTransmission() == 0);
+// Konfigurera och aktivera tidzon i ESP32:s interna operativsystem
+inline void applyTimeZone() {
+    if (sysSettings.useSwedenTZ) {
+        // POSIX-sträng för Sverige: CET (Central European Time) UTC+1, 
+        // CEST (Central European Summer Time) UTC+2 från sista söndagen i mars (M3.5.0) 
+        // till sista söndagen i oktober (M10.5.0) kl 03:00.
+        setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1);
+        tzset();
+        Serial.println("[CLOCK] Tidzon satt till: Sverige (Automatisk sommar/vintertid)");
+    } else {
+        // Fallback till ren manuell UTC-offset utan sommartid
+        char tzBuf[32];
+        snprintf(tzBuf, sizeof(tzBuf), "GMT%+d", -(sysSettings.manualUtcOffset / 3600));
+        setenv("TZ", tzBuf, 1);
+        tzset();
+        Serial.printf("[CLOCK] Manuell UTC-tidzon applicerad: %s\n", tzBuf);
+    }
 }
 
 inline void initClock() {
@@ -42,48 +53,18 @@ inline void initClock() {
         time_t t = mktime(&tm);
         struct timeval now = { .tv_sec = t, .tv_usec = 0 };
         settimeofday(&now, NULL);
+        
+        applyTimeZone(); // Se till att tidzonen läggs på klockvärdet från hårdvaru-RTC
     }
 }
 
-inline void writeTimeToHardwareRTC(int year, int month, int day, int hour, int minute, int second) {
-    Wire.beginTransmission(PCF85063_ADDR);
-    Wire.write(0x04); 
-    Wire.write(decToBcd(second));
-    Wire.write(decToBcd(minute));
-    Wire.write(decToBcd(hour));
-    Wire.write(decToBcd(day));
-    Wire.write(0x00); 
-    Wire.write(decToBcd(month));
-    Wire.write(decToBcd(year - 2000));
-    Wire.endTransmission();
-}
-
-inline void setManualTime(int year, int month, int day, int hour, int minute, int second) {
-    struct tm tm;
-    tm.tm_year = year - 1900;
-    tm.tm_mon = month - 1;
-    tm.tm_mday = day;
-    tm.tm_hour = hour;
-    tm.tm_min = minute;
-    tm.tm_sec = second;
-    
-    time_t t = mktime(&tm);
-    struct timeval now = { .tv_sec = t, .tv_usec = 0 };
-    settimeofday(&now, NULL);
-    
-    writeTimeToHardwareRTC(year, month, day, hour, minute, second);
-}
-
-inline String getFormattedTime() {
+// Kontrollerar om sommartid (DST) är aktiv just nu i Sverige
+inline bool isDSTActive() {
     time_t now;
     struct tm timeinfo;
     time(&now);
     localtime_r(&now, &timeinfo);
-    char buf[20];
-    snprintf(buf, sizeof(buf), "%04d-%02d-%02d %02d:%02d:%02d",
-             timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
-             timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-    return String(buf);
+    return (timeinfo.tm_isdst > 0);
 }
 
 #endif
