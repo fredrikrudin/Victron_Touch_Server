@@ -7,11 +7,13 @@
 #include <freertos/semphr.h>
 #include "bus_config.h"
 
+// Hårdvaru-pinnar verifierade mot Waveshare v4 källkod
 #define I2C_SDA_PIN   11
 #define I2C_SCL_PIN   12
 #define BAT_ADC_PIN   4
 #define BACKLIGHT_PIN 1
 
+// BLE Enhetstyper för Victron
 enum VictronType { TYPE_UNKNOWN, TYPE_SOLAR_CHARGER, TYPE_BATTERY_MONITOR, TYPE_INVERTER, TYPE_DCDC };
 
 struct VictronDevice {
@@ -28,7 +30,7 @@ struct VictronDevice {
     int stateOfCharge;    
     int deviceState;      
     uint8_t chargerError; 
-    char lastSeen[20];
+    char lastSeen[20];     // YYYY-MM-DD HH:MM:SS
 };
 
 struct RuuviTag {
@@ -52,28 +54,31 @@ struct SystemSettings {
     int nightEndHour;
     bool autoRelayCheck;     
     
-    // NYTT: WiFi-klientuppgifter
+    // WiFi-klientuppgifter
     char wifiSSID[64];
     char wifiPass[64];
-    bool useSTA; // Sann om enheten ska ansluta till hemmanätverk
+    bool useSTA; 
+};
+
+struct DiscoveredBLE {
+    char mac[18];
+    int rssi;
 };
 
 #define MAX_DEVICES 5
+#define MAX_DISCOVERED 10
+
 extern VictronDevice savedVictrons[MAX_DEVICES];
 extern int victronCount;
 extern RuuviTag savedRuuvis[MAX_DEVICES];
 extern int ruuviCount;
 extern SystemSettings sysSettings;
 
-// Struktur för temporärt hittade enheter vid skanning
-struct DiscoveredBLE {
-    char mac[18];
-    int rssi;
-};
-#define MAX_DISCOVERED 10
+// Temporärt hittade enheter vid manuell skanning
 extern DiscoveredBLE discVictrons[MAX_DISCOVERED];
 extern int discVictronCount;
 
+// Trådsäkra lås (Mutex)
 extern SemaphoreHandle_t dataMutex;
 extern SemaphoreHandle_t lvglMutex;
 
