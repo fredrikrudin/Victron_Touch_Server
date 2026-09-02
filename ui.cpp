@@ -86,7 +86,7 @@ static void victron_slider_event_cb(lv_event_t * e) {
     lv_obj_t * slider = lv_event_get_target(e);
     int value = lv_slider_get_value(slider);
     sysSettings.victronScanInterval = value;
-    char buf; snprintf(buf, sizeof(buf), "Victron: %d sek", value);
+    char buf[32]; snprintf(buf, sizeof(buf), "Victron: %d sek", value);
     lv_label_set_text(lbl_slider_v_txt, buf);
     if(lv_event_get_code(e) == LV_EVENT_RELEASED) saveAllSettings();
 }
