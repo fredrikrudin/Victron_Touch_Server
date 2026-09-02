@@ -83,3 +83,6 @@ För att maximera prestandan för touch-skärmen är Serial Monitor-utskrifterna
 ## 📄 Licens
 
 Detta projekt är utvecklat för privat och industriell energiövervakning. Fritt att använda och modifiera under MIT-licensen.
+
+###
+AI -> https://share.google/aimode/HzsSuUqKbVzJT8Djm
