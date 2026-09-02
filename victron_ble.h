@@ -18,8 +18,8 @@ inline void decryptVictronPacket(uint8_t* encryptedData, size_t dataLen, const c
     hexStringToBytes(keyStr, key);
 
     uint8_t iv[16] = {0};
-    iv[0] = encryptedData[4]; 
-    iv[1] = encryptedData[5]; 
+    iv[0] = encryptedData[2]; 
+    iv[1] = encryptedData[3]; 
     
     mbedtls_aes_context aes;
     mbedtls_aes_init(&aes);
@@ -35,11 +35,11 @@ inline void decryptVictronPacket(uint8_t* encryptedData, size_t dataLen, const c
 inline const char* getVictronErrorString(uint8_t errorCode) {
     switch (errorCode) {
         case 0:   return "OK";
-        case 2:   return "Batterispanning hog";
-        case 17:  return "Overhettad";
+        case 2:   return "Overspanning Batteri";
+        case 17:  return "Laddare Overhettad";
         case 19:  return "Overstrom";
-        case 33:  return "PV-spanning hog";
-        default:  return "Varning/Okant";
+        case 33:  return "PV-spanning for hog";
+        default:  return "Okant fel/Varning";
     }
 }
 
@@ -48,7 +48,7 @@ inline void parseVictronData(VictronDevice& dev, uint8_t* decryptedPayload, uint
     strncpy(dev.lastSeen, currentTime.c_str(), sizeof(dev.lastSeen) - 1);
 
     switch (recordType) {
-        case 0x01: // MPPT Solar Charger
+        case 0x01: 
             dev.type = TYPE_SOLAR_CHARGER;
             dev.deviceState = decryptedPayload[0]; 
             dev.chargerError = decryptedPayload[1];
@@ -57,7 +57,7 @@ inline void parseVictronData(VictronDevice& dev, uint8_t* decryptedPayload, uint
             dev.pvPower = (decryptedPayload[7] << 8) | decryptedPayload[6]; 
             break;
 
-        case 0x02: // Battery Monitor (SmartShunt)
+        case 0x02: 
             dev.type = TYPE_BATTERY_MONITOR;
             dev.stateOfCharge = ((decryptedPayload[1] << 8) | decryptedPayload[0]) / 10; 
             dev.batteryVoltage = ((decryptedPayload[3] << 8) | decryptedPayload[2]) / 100.0;
@@ -67,6 +67,42 @@ inline void parseVictronData(VictronDevice& dev, uint8_t* decryptedPayload, uint
             dev.chargerError = 0;
             break;
     }
+}
+
+// NYTT: MANUELL BLE-SÖKNING UTAN PARNINGSKRAV FOR DISPLAYEN
+inline void runVictronDiscoveryScan() {
+    BLEScan* pBLEScan = BLEDevice::getBLEScan();
+    pBLEScan->setActiveScan(true);
+    BLEScanResults foundDevices = pBLEScan->start(2, false); 
+    
+    if (xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        discVictronCount = 0;
+        for (int i = 0; i < foundDevices.getCount(); i++) {
+            BLEAdvertisedDevice device = foundDevices.getDevice(i);
+            if (device.haveManufacturerData()) {
+                std::string mData = device.getManufacturerData();
+                uint8_t* rawData = (uint8_t*)mData.data();
+                uint16_t manuID = (rawData[1] << 8) | rawData[0];
+                
+                if (manuID == 0x02D8 && discVictronCount < MAX_DISCOVERED) {
+                    String mac = device.getAddress().toString().c_str();
+                    
+                    bool alreadySaved = false;
+                    for(int j=0; j<victronCount; j++) {
+                        if(strcasecmp(savedVictrons[j].mac, mac.c_str()) == 0) alreadySaved = true;
+                    }
+                    
+                    if(!alreadySaved) {
+                        strncpy(discVictrons[discVictronCount].mac, mac.c_str(), sizeof(discVictrons[discVictronCount].mac) - 1);
+                        discVictrons[discVictronCount].rssi = device.getRSSI();
+                        discVictronCount++;
+                    }
+                }
+            }
+        }
+        xSemaphoreGive(dataMutex);
+    }
+    pBLEScan->clearResults();
 }
 
 #endif
