@@ -6,6 +6,9 @@ RuuviTag savedRuuvis[MAX_DEVICES];
 int ruuviCount = 0;
 SystemSettings sysSettings;
 
+DiscoveredBLE discVictrons[MAX_DISCOVERED];
+int discVictronCount = 0;
+
 SemaphoreHandle_t dataMutex = NULL;
 SemaphoreHandle_t lvglMutex = NULL;
 
@@ -24,6 +27,12 @@ void loadAllSettings() {
         sysSettings.nightStartHour = 22;
         sysSettings.nightEndHour = 6;
         sysSettings.autoRelayCheck = true;
+        
+        // WiFi standardvärden (Tomma)
+        sysSettings.useSTA = false;
+        memset(sysSettings.wifiSSID, 0, sizeof(sysSettings.wifiSSID));
+        memset(sysSettings.wifiPass, 0, sizeof(sysSettings.wifiPass));
+        
         prefs.putBytes("sys", &sysSettings, sizeof(SystemSettings));
     }
     
