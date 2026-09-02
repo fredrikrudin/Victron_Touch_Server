@@ -8,16 +8,14 @@
 #include "clock_manager.h"
 #include "industrial_busses.h"
 
-extern WebServer server;
-extern String currentSessionToken;
-extern unsigned long sessionTimeout;
+WebServer server(80);
 
 inline bool isAuthorized() {
     if (millis() > sessionTimeout) { currentSessionToken = ""; return false; }
     if (server.hasHeader("Cookie")) {
         String cookie = server.header("Cookie");
         if (cookie.indexOf("CABBY_SESS=" + currentSessionToken) != -1) {
-            sessionTimeout = millis() + 600000; // Förläng 10 min
+            sessionTimeout = millis() + 600000; 
             return true;
         }
     }
@@ -25,17 +23,14 @@ inline bool isAuthorized() {
 }
 
 inline void initWebServer() {
-    WiFi.softAP("CABBY_Gateway_AP", "12345678");
-    MDNS.begin("cabby");
-    
     const char* headerkeys[] = {"Cookie"};
     server.collectHeaders(headerkeys, 1);
 
     server.on("/login", HTTP_GET, []() {
         String html; html.reserve(1024);
-        html += "<html><head><meta charset='utf-8'><title>Cabby Login</title></head>";
+        html += "<html><head><meta charset='utf-8'><title>Login</title></head>";
         html += "<body style='font-family:sans-serif; text-align:center; padding-top:100px; background:#f4f4f9;'>";
-        html += "<h2>🔒 Logga in på CABBY v0.8</h2><form action='/login' method='POST'>";
+        html += "<h2>🔒 CABBY v0.8 Inloggning</h2><form action='/login' method='POST'>";
         html += "Anv: <input type='text' name='user'><br><br>Losen: <input type='password' name='pass'><br><br>";
         html += "<input type='submit' value='Logga in'></form></body></html>";
         server.send(200, "text/html", html);
@@ -57,13 +52,20 @@ inline void initWebServer() {
         if (!isAuthorized()) { server.sendHeader("Location", "/login"); server.send(302, "text/plain", ""); return; }
 
         String html; html.reserve(4096);
-        html += "<html><head><meta charset='utf-8'><title>Cabby Hub</title></head><body style='font-family:sans-serif; background:#f0f2f5; padding:20px;'>";
-        html += "<h1>⚙️ CABBY v0.8 Kontrollpanel</h1><p>Tid: " + getFormattedTime() + " | Volt: " + String(readBatteryVoltage(),2) + "V</p>";
+        html += "<html><head><meta charset='utf-8'><title>Cabby Control</title>";
+        html += "<style>.card{background:white; padding:20px; margin-bottom:15px; border-radius:6px; box-shadow:0 2px 5px rgba(0,0,0,0.1);}</style></head>";
+        html += "<body style='font-family:sans-serif; background:#f0f2f5; padding:20px;'>";
+        html += "<h1>⚙️ CABBY v0.8 Huvudportal</h1><p>Tid: " + getFormattedTime() + " | Volt: " + String(readBatteryVoltage(),2) + "V</p>";
         
-        // Sektion: Victron
-        html += "<div style='background:white; padding:15px; margin-bottom:15px; border-radius:5px;'><h2>☀️ Victron BLE Enheter</h2>";
-        html += "<form action='/save-v-int' method='POST'>Intervall: <input type='number' name='v_int' value='" + String(sysSettings.victronScanInterval) + "'>s <input type='submit' value='Spara'></form>";
-        html += "<table>";
+        // WiFi Sektion
+        html += "<div class='card'><h2>📡 WiFi-Anslutning (Klientlage)</h2><form action='/save-wifi' method='POST'>";
+        html += "Anslut till hemmanatverk: <input type='checkbox' name='usesta' value='1' " + String(sysSettings.useSTA ? "checked" : "") + "><br><br>";
+        html += "SSID: <input type='text' name='ssid' value='" + String(sysSettings.wifiSSID) + "'><br>";
+        html += "Losenord: <input type='password' name='pass' value='" + String(sysSettings.wifiPass) + "'><br><br>";
+        html += "<input type='submit' value='Spara & Starta om'></form></div>";
+
+        // Victron Sektion
+        html += "<div class='card'><h2>☀️ Victron Enheter</h2><table>";
         if (xSemaphoreTake(dataMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
             for(int i=0; i<victronCount; i++) {
                 html += "<tr><td><b>" + String(savedVictrons[i].name) + "</b></td><td>" + String(savedVictrons[i].mac) + "</td><td>" + String(savedVictrons[i].batteryVoltage) + "V</td></tr>";
@@ -72,28 +74,19 @@ inline void initWebServer() {
         }
         html += "</table></div>";
         
-        // Sektion: Bussar
-        html += "<div style='background:white; padding:15px; margin-bottom:15px; border-radius:5px;'><h2>🔌 Busshastigheter</h2>";
-        html += "<form action='/save-busses' method='POST'>RS485 Baud: <input type='number' name='baud' value='" + String(busSettings.rs485Baud) + "'><br>CAN Kbps: <input type='number' name='can' value='" + String(busSettings.canSpeedKbps) + "'><br><input type='submit' value='Spara'></form></div>";
-        
         html += "</body></html>";
         server.send(200, "text/html", html);
     });
 
-    server.on("/save-v-int", HTTP_POST, []() {
+    server.on("/save-wifi", HTTP_POST, []() {
         if (!isAuthorized()) return;
-        sysSettings.victronScanInterval = server.arg("v_int").toInt();
+        sysSettings.useSTA = server.hasArg("usesta");
+        strncpy(sysSettings.wifiSSID, server.arg("ssid").c_str(), sizeof(sysSettings.wifiSSID) - 1);
+        strncpy(sysSettings.wifiPass, server.arg("pass").c_str(), sizeof(sysSettings.wifiPass) - 1);
         saveAllSettings();
-        server.sendHeader("Location", "/"); server.send(302, "text/plain", "");
-    });
-
-    server.on("/save-busses", HTTP_POST, []() {
-        if (!isAuthorized()) return;
-        busSettings.rs485Baud = server.arg("baud").toInt();
-        busSettings.canSpeedKbps = server.arg("can").toInt();
-        saveBusSettings();
-        initRS485();
-        server.sendHeader("Location", "/"); server.send(302, "text/plain", "");
+        server.send(200, "text/html", "Sparat! Startar om systemet...");
+        delay(1000);
+        ESP.restart();
     });
 
     server.begin();
