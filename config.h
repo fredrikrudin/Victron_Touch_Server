@@ -2,35 +2,21 @@
 #define CONFIG_H
 
 #include <Arduino.h>
-#include <Preferences.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/semphr.h>
-#include "bus_config.h"
 
-// Hårdvaru-pinnar verifierade mot Waveshare v4 källkod
-#define I2C_SDA_PIN   11
-#define I2C_SCL_PIN   12
-#define BAT_ADC_PIN   4
-#define BACKLIGHT_PIN 1
+// Hårdvarustift för Waveshare v4
+#define RS485_RX_PIN 43
+#define RS485_TX_PIN 44
+#define CAN_RX_PIN   41
+#define CAN_TX_PIN   42
 
-// BLE Enhetstyper för Victron
-enum VictronType { TYPE_UNKNOWN, TYPE_SOLAR_CHARGER, TYPE_BATTERY_MONITOR, TYPE_INVERTER, TYPE_DCDC };
-
+// 1. Definitioner av alla strukturer
 struct VictronDevice {
-    char mac[18];             // Plats för "AA:BB:CC:DD:EE:FF\0"
-    char name[32];            // Plats för enhetsnamn
-    char encryptionKey[33];   // Plats for 32 tecken bindkey + \0
-    VictronType type;
+    char mac[18];          // Plats för "AA:BB:CC:DD:EE:FF" + null-terminator
+    char name[32];
+    char encryptionKey[33]; // 32 hex-tecken + null
+    float voltage;
+    float current;
     bool connected;
-    
-    float batteryVoltage;
-    float batteryCurrent;
-    float pvPower;        
-    float consumedAh;     
-    int stateOfCharge;    
-    int deviceState;      
-    uint8_t chargerError; 
-    char lastSeen[20];        // Plats för "YYYY-MM-DD HH:MM:SS\0"
 };
 
 struct RuuviTag {
@@ -38,55 +24,49 @@ struct RuuviTag {
     char name[32];
     float temperature;
     float humidity;
+    float pressure;
     bool active;
-    char lastSeen[20];
 };
 
 struct SystemSettings {
-    char ntpServer[64];       
-    int victronScanInterval; 
-    int ruuviScanInterval;
-    int brightnessDay;
-    int brightnessNight;
-    int brightnessDimmed;
-    int screenTimeoutSec;
-    int nightStartHour;
-    int nightEndHour;
-    bool autoRelayCheck;     
-    
-    char wifiSSID[32];        // Maxlängd för SSID
-    char wifiPass[64];        // Maxlängd för WPA2 lösenord
-    bool useSTA; 
-    bool useSwedenTZ;       
-    int manualUtcOffset;    
+    char wifiSSID[32];
+    char wifiPass[64];
+    char ntpServer[64];
+    int utcOffsetSeconds;
+    bool useNTP;
+    int rs485Baud;
+    int canSpeedKbps;
 };
 
-struct DiscoveredBLE {
-    char mac[18];
-    int rssi;
+struct ScheduleEvent {
+    bool active;
+    int hour;
+    int minute;
+    uint8_t modbusSlaveID;
+    uint16_t modbusRegister;
+    uint16_t valueToSend;
+    char label[32];
+    bool triggeredToday;
 };
 
+#define MAX_VICTRON 5
+#define MAX_RUUVI 5
+#define MAX_EVENTS 10
 
-
-#define MAX_DEVICES 5
-#define MAX_DISCOVERED 10
-
-extern VictronDevice savedVictrons[MAX_DEVICES];
+// 2. Deklarera variablerna som "extern" så att alla .h-filer kan se dem
+extern VictronDevice savedVictrons[MAX_VICTRON];
 extern int victronCount;
-extern RuuviTag savedRuuvis[MAX_DEVICES];
+
+extern RuuviTag savedRuuvis[MAX_RUUVI];
 extern int ruuviCount;
-extern SystemSettings sysSettings;
 
-// Temporärt hittade enheter vid manuell skanning
-extern DiscoveredBLE discVictrons[MAX_DISCOVERED];
-extern int discVictronCount;
+extern SystemSettings sysSettings; // Matchar nu exakt!
 
-// Trådsäkra lås (Mutex)
-extern SemaphoreHandle_t dataMutex;
-extern SemaphoreHandle_t lvglMutex;
+extern ScheduleEvent savedEvents[MAX_EVENTS];
+extern int eventCount;
 
+// Funktionsprototyper
 void loadAllSettings();
 void saveAllSettings();
-void factoryResetBLESettings();
 
 #endif
