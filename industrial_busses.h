@@ -1,12 +1,21 @@
 #ifndef INDUSTRIAL_BUSSES_H
 #define INDUSTRIAL_BUSSES_H
 
+#include <Arduino.h>       // <--- SAKNADES! Ger tillgång till millis(), analogRead, SERIAL_8N1 etc.
 #include "config.h"
+#include "bus_config.h" 
+#include "clock_manager.h"
 #include <driver/twai.h>
 
+// --- GLOBALA VARIABLER (Hämtas från config/main) ---
 extern HardwareSerial RS485Serial;
 extern bool isRelayPhysicallyConnected;
 
+// --- SAKNADES: Berätta för kompilatorn att dessa structs finns i projektet ---
+extern BusSettings busSettings;   // Gör att busSettings.rs485Baud kan läsas
+extern SysSettings sysSettings;   // Gör att sysSettings.autoRelayCheck kan läsas
+
+// --- HJÄLPFUNKTIONER (Modbus) ---
 inline uint16_t calculateCRC(uint8_t *buffer, uint16_t length) {
     uint16_t crc = 0xFFFF;
     for (uint16_t i = 0; i < length; i++) {
@@ -40,6 +49,7 @@ inline void sendModbusCommand(uint8_t slaveID, uint8_t functionCode, uint16_t re
     RS485Serial.flush();
 }
 
+// --- INITIERINGAR ---
 inline void initRS485() {
     RS485Serial.begin(busSettings.rs485Baud, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
 }
@@ -53,19 +63,20 @@ inline void initCAN() {
     else if (busSettings.canSpeedKbps == 125) t_config = TWAI_TIMING_CONFIG_125KBITS();
     else                                      t_config = TWAI_TIMING_CONFIG_500KBITS();
 
-    twai_driver_uninstall(); // Rensa gammal drivrutin om omkonfigurerad
+    twai_driver_uninstall(); 
     if (twai_driver_install(&g_config, &t_config, &f_config) == ESP_OK) {
         twai_start();
     }
 }
 
+// --- RELÄKOLL ---
 inline void checkRelayPresence() {
     if (!sysSettings.autoRelayCheck) {
         isRelayPhysicallyConnected = true;
         return;
     }
     
-    uint8_t pingPacket[] = { 0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x7D, 0xCA }; // RÄTT
+    uint8_t pingPacket[] = { 0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x7D, 0xCA }; 
 
     while(RS485Serial.available()) RS485Serial.read();
 
@@ -84,6 +95,7 @@ inline void checkRelayPresence() {
     isRelayPhysicallyConnected = response;
 }
 
+// --- BATTERIMÄTNING ---
 inline float readBatteryVoltage() {
     int raw = analogRead(BAT_ADC_PIN);
     return ((raw / 4095.0) * 3.3) * 2.0; 
